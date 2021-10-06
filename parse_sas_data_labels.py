@@ -26,9 +26,9 @@ def extract_ports(data, key, output_path):
     ports = list(
         map(
             lambda x: (
-                x[0].strip().replace("'", ""), 
-                x[1].split(',')[0].strip().replace("'", ""), 
-                x[1].split(',')[1].strip().replace("'", "") if  len(x[1].split(',')) > 1 else ''
+                x[0].strip().replace("'", ""),
+                x[1].split(',')[0].strip().replace("'", "").strip(),
+                x[1].split(',')[1].strip().replace("'", "").split(' ')[0].strip() if  len(x[1].split(',')) > 1 else ''
             ),
             map(
                 lambda x: x.split('='), 
