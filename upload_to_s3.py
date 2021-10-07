@@ -6,7 +6,7 @@ import datetime
 
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import udf
-from pyspark.sql.types import DateType, IntegerType as Int
+from pyspark.sql.types import DateType, IntegerType as Int, StringType
 
 config = configparser.ConfigParser()
 config.read_file(open('config.ini'))
@@ -25,15 +25,15 @@ def create_spark_session():
         enableHiveSupport().getOrCreate()
     return spark
 
-# def create_boto3_session():
-#     return boto3.Session()
-
-# session = boto3.Session(
-#     aws_access_key_id='AKIAYZSVD6GALHK2PQ4K',
-#     aws_secret_access_key='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',
-# )
-
 def upload_file(s3_resource, source_file_path, bucket, dest_file_path):
+    ''' This method uploads a file to S3
+
+    INPUTS:
+        s3_resource: boto3 s3 object
+        source_file_path: Path of the file
+        bucket: s3 bucket name
+        dest_file_path: Path relative to the s3 bucket
+    '''
     s3_resource.meta.client.upload_file(
         Filename=source_file_path, 
         Bucket=bucket, 
@@ -41,6 +41,14 @@ def upload_file(s3_resource, source_file_path, bucket, dest_file_path):
     )
 
 def process_metadata(s3, bucket, output_dir, output_folder):
+    ''' This method uploads all the input/metadata files in S3
+
+    INPUTS:
+        s3_resource: boto3 s3 object
+        bucket: s3 bucket name
+        output_dir: s3 bucket path
+        output_folder: Path relative to the s3 bucket
+    '''
     data_files = [
         ('.', 'i94_countries.csv')
         ('.', 'i94_ports.csv'), 
@@ -55,13 +63,53 @@ def process_metadata(s3, bucket, output_dir, output_folder):
 
 def convert_sas_date(days):
     """
-    Converts SAS date stored as days since 1/1/1960 to datetime
-    :param days: Days since 1/1/1960
-    :return: datetime
+    This method convert SAS date to datetime format
+
+    INPUTS:
+        days: Days in SAS format (since 1/1/60)
+
+    RETURNS:
+        datetime
     """
     if days is None:
         return None
     return datetime.date(1960, 1, 1) + datetime.timedelta(days=days)
+
+def convert_visa_category(i94visa):
+    ''' This method returns visa category from the visa type code
+
+    INPUTS:
+        i94visa: i94 visa type code
+
+    RETURNS:
+        string: Visa type
+    '''
+    if i94visa==1:
+        return "Business"
+    elif i94visa==2:
+        return "Pleasure"
+    elif i94visa==3:
+        return "Student"
+    else:
+        return "Others"
+
+def convert_travel_type(i94mode):
+    ''' This method returns mode of travel from the associated code
+
+    INPUTS:
+        i94mode: Code representing mode of travel
+
+    RETURNS:
+        string: Mode of travel
+    '''
+    if i94mode==1:
+        return "Air"
+    elif i94mode==2:
+        return "Sea"
+    elif i94mode==3:
+        return "Land"
+    else:
+        return "Not reported"
 
 def process_immigration_data(spark, output_dir, output_folder):
     """ This method processes the immigration data. It converts 
@@ -81,22 +129,30 @@ def process_immigration_data(spark, output_dir, output_folder):
     """
     get_sas_date = udf(convert_sas_date, DateType())
     get_sas_day = udf(lambda x: convert_sas_date(x).day, Int())
+    get_visa_category = udf(lambda x: convert_visa_category(x), StringType())
+    get_travel_mode = udf(lambda x: convert_travel_type(x), StringType())
 
     for fl in glob.glob(os.path.join('../../data/18-83510-I94-Data-2016/*')):
         df_spark = spark.read.format('com.github.saurfang.sas.spark').load(fl)
         
-        df = df_spark.withColumn("arrival_date", get_sas_date(df_spark.arrdate)) \
-                .withColumn("departure_date", get_sas_date(df_spark.depdate)) \
-                .withColumn("year", df_spark.i94yr.cast(Int())) \
-                .withColumn("month", df_spark.i94mon.cast(Int())) \
-                .withColumn("arrival_day", get_sas_day(df_spark.arrdate)) \
-                .withColumn("i94cit", df_spark.i94cit.cast(Int())) \
-                .withColumn("i94res", df_spark.i94res.cast(Int())) \
-                .withColumn("i94mode", df_spark.i94mode.cast(Int())) \
-                .withColumn("i94bir", df_spark.i94bir.cast(Int())) \
-                .withColumn("i94visa", df_spark.i94visa.cast(Int())) \
-                .withColumn("biryear", df_spark.biryear.cast(Int()))
-        
+        df_spark = df_spark.withColumn("arrival_date", get_sas_date(df_spark.arrdate)) \
+             .withColumn("departure_date", get_sas_date(df_spark.depdate)) \
+             .withColumn("year", df_spark.i94yr.cast(Int())) \
+             .withColumn("month", df_spark.i94mon.cast(Int())) \
+             .withColumn("arrival_day", get_sas_day(df_spark.arrdate)) \
+             .withColumn("i94cit", df_spark.i94cit.cast(Int())) \
+             .withColumn("i94res", df_spark.i94res.cast(Int())) \
+             .withColumn("travel_mode", get_travel_mode(df_spark.i94mode)) \
+             .withColumn("i94bir", df_spark.i94bir.cast(Int())) \
+             .withColumn("visa_category", get_visa_category(df_spark.i94visa)) \
+             .withColumn("biryear", df_spark.biryear.cast(Int()))
+
+        df = df_spark.select([
+            'year', 'month', 'arrival_day', 'cicid', 'arrdate', 'arrival_date', 'i94cit', 'i94res', 'i94port',
+            'travel_mode', 'i94addr', 'depdate', 'departure_date', 'i94bir', 'visa_category', 'biryear', 'gender',
+            'airline', 'fltno', 'visatype'
+        ])
+
         print("Writing ", fl)
         df.write.mode("append").partitionBy("year", "month", "arrival_day") \
             .parquet(f"{output_dir}/{output_folder}/immigration.parquet")
