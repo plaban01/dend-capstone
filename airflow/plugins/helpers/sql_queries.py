@@ -85,13 +85,14 @@ class SqlQueries:
     
     fact_demographics_insert = ("""
     INSERT INTO fact_demographics (
-        city_id, median_age, male_population, female_population, veterans, 
+        city_id, median_age, male_population, female_population, total_population, veterans,
         foreign_born, avg_household_size, race, count
     )
     SELECT dp.port_id as city_id,
            sd."Median Age" as median_age,
            sd."Male Population" as male_population,
            sd."Female Population" as female_population,
+           sd."Total Population" as total_population,
            sd."Number of Veterans" as veterans,
            sd."Foreign-born" as foreign_born,
            sd."Average Household Size" as avg_household_size,
