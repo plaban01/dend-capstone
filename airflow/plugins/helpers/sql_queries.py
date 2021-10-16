@@ -138,3 +138,19 @@ class SqlQueries:
     immigration_row_count = "SELECT COUNT(*) from fact_immigration WHERE arrival_date = TO_DATE('{execution_date}', 'YYYY-MM--DD')"
     
     row_count_query = "SELECT COUNT(*) FROM {table}"
+
+    country_table_null_count = "SELECT COUNT(*) FROM dim_Country where country_name IS NULL"
+
+    state_table_null_count = "SELECT COUNT(*) FROM dim_States where state_name IS NULL"
+
+    ports_table_null_count = "SELECT COUNT(*) FROM dim_Ports where port_code IS NULL"
+
+    travel_modes_null_count = "SELECT COUNT(*) FROM dim_TravelModes where mode IS NULL"
+
+    visa_categories_null_count = "SELECT COUNT(*) FROM dim_VisaCategories where name IS NULL"
+
+    airport_types_null_count = "SELECT COUNT(*) FROM dim_AirportTypes where airport_type IS NULL"
+
+    time_table_null_count = "SELECT COUNT(*) FROM dim_time where ts IS NULL"
+
+    fact_immigration_null_arrival_date_count = "SELECT COUNT(*) FROM fact_immigration where arrdate IS NULL"

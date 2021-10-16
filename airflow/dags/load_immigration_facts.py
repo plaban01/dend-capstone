@@ -27,13 +27,21 @@ dag = DAG(
 
 dimension_quality_checks = [
     { 'name': 'Check country table row count', 'sql': SqlQueries.row_count_query.format(table="dim_Country"), 'condition': 'result > 0' },
+    { 'name': 'Check country table null count', 'sql': SqlQueries.country_table_null_count, 'condition': 'result == 0' },
     { 'name': 'Check state table row count', 'sql': SqlQueries.row_count_query.format(table="dim_States"), 'condition': 'result > 0' },
+    { 'name': 'Check state table null count', 'sql': SqlQueries.state_table_null_count, 'condition': 'result == 0' },
     { 'name': 'Check ports table row count', 'sql': SqlQueries.row_count_query.format(table="dim_Ports"), 'condition': 'result > 0' },
+    { 'name': 'Check ports table null count', 'sql': SqlQueries.ports_table_null_count, 'condition': 'result == 0' },
     { 'name': 'Check airports table row count', 'sql': SqlQueries.row_count_query.format(table="dim_Airports"), 'condition': 'result > 0' }
 ]
 
 immigration_quality_checks = [
-    { 'name': 'Check immigration row count', 'sql': SqlQueries.immigration_row_count, 'condition': 'result > 0' }
+    { 'name': 'Check immigration row count', 'sql': SqlQueries.immigration_row_count, 'condition': 'result > 0' },
+    { 'name': 'Check travel modes null count', 'sql': SqlQueries.travel_modes_null_count, 'condition': 'result == 0' },
+    { 'name': 'Check visa categories null count', 'sql': SqlQueries.visa_categories_null_count, 'condition': 'result == 0' },
+    { 'name': 'Check airport types null count', 'sql': SqlQueries.airport_types_null_count, 'condition': 'result == 0' },
+    { 'name': 'Check time table null count', 'sql': SqlQueries.time_table_null_count, 'condition': 'result == 0' },
+    { 'name': 'Check immigration table null date count', 'sql': SqlQueries.fact_immigration_null_arrival_date_count, 'condition': 'result == 0' }
 ]
 
 start_operator = DummyOperator(task_id='Begin_execution',  dag=dag)
