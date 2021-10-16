@@ -4,7 +4,7 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 class StageToRedshiftOperator(BaseOperator):
-    # template_fields = ("s3_key",)
+    template_fields = ("s3_path",)
     copy_sql = """
         COPY {}
         FROM '{}'
@@ -32,7 +32,9 @@ class StageToRedshiftOperator(BaseOperator):
         self.truncate = truncate
         
     def execute(self, context):
-        self.log(f"S3 path : {self.s3_path}")
+        """ This method defines the main execution logic of the operator
+        """
+        self.log.info(f"S3 path : {self.s3_path}")
         aws_hook = AwsHook(self.aws_credentials_id)
         credentials = aws_hook.get_credentials()
         redshift = PostgresHook(postgres_conn_id=self.redshift_conn_id)
