@@ -43,8 +43,16 @@ The metadata associated with the various codes used in I94 immigration data is p
 ## Step 3: Define the Data Model
 
 ### Conceptual Data Model
-The data is stored as star schema in Amazon Redshift. There are two fact tables and associated dimension tables. fact_immigration is the main fact table. Demographics is also modeled as fact as demographics information and can be aggregated (e.g. population count etc). Below is the ER diagram of the data model:
+The data has been modeled as star schema for data warehouse in Amazon Redshift. There are two fact tables and associated dimension tables. fact_immigration is the main fact table. Demographics is also modeled as fact as demographics information and can be aggregated (e.g. population count etc). 
+
+Below is the ER diagram of the data model:
 ![image](https://user-images.githubusercontent.com/4925968/137584721-274cecac-2de1-4b10-bc5d-045da9434e91.png)
+
+The data model will allow data to be aggregated across the following dimensions:
+* Year and month
+* Country of the immigrants
+* State and city
+* Mode of travel, visa type
 
 ### Mapping out Data Pipelines
 Following steps are performed to pieline data into the above model:
@@ -189,34 +197,51 @@ Prerequisites - Python 3.6 or higher, Apache Spark, Apache Airflow
 * Trigger the load_immigration_dimensions DAG manually.
 * Turn on load_immigration_facts DAG. This will be scheduled to run daily starting from 2016/1/1
 
-## Example Queries
+## Example Queries (for 2016 1st Quarter)
 
 ### Which state and city had the maximum number of immigrants?
 SELECT dp.port_name, ds.state_name, COUNT(*) as IMMIGRANT_COUNT  
 FROM fact_immigration fi  
 INNER JOIN dim_Ports dp on fi.port_id = dp.port_id  
 INNER JOIN dim_States ds on dp.state_id = ds.state_id  
-GROUP BY dp.port_id, dp.state_id  
-ORDER BY IMMIGRANT_COUNT DESC  
+INNER JOIN dim_time dt on fi.arrdate = dt.ts  
+WHERE dt.year = 2016 and dt.month IN (1, 2, 3)  
+GROUP BY dp.port_id, dp.port_name, ds.state_id, ds.state_name ORDER BY IMMIGRANT_COUNT DESC  
+
+![image](https://user-images.githubusercontent.com/4925968/137597037-9611ecd2-42a6-403d-ace0-5a2ba0b59062.png)
 
 ### What are the top countries where immigrants came from?
 SELECT dc.country_name, COUNT(*) as COUNT  
 FROM fact_immigration fi  
 INNER JOIN dim_Country dc ON fi.residence_country_id = dc.country_id  
-GROUP BY dc.country_id  
+INNER JOIN dim_time dt on fi.arrdate = dt.ts  
+WHERE dt.year = 2016 and dt.month IN (1, 2, 3)  
+GROUP BY dc.country_id, dc.country_name  
 ORDER BY COUNT DESC  
 
-### Which time of the year maximum immigrations happen?
-SELECT year, month, COUNT(*) as COUNT  
+![image](https://user-images.githubusercontent.com/4925968/137597085-c3ac650d-cadf-4669-ae3c-9f33306a6b00.png)
+
+### What is the most preferred purpose of travel ?
+SELECT dv.name, COUNT(*)  
 FROM fact_immigration fi  
-INNER JOIN dim_time dt ON fi.arrdate = dt.ts  
-GROUP BY year, month  
+INNER JOIN dim_VisaCategories dv on fi.visa_category_id = dv.visa_category_id  
+INNER JOIN dim_time dt on fi.arrdate = dt.ts  
+WHERE dt.year = 2016 and dt.month IN (1, 2, 3)  
+GROUP BY dv.visa_category_id, dv.name  
 ORDER BY COUNT DESC  
 
-### What is the total population and immigrant population of the cities where maximum immigrations are happening
-SELECT dp.port_name, ds.total_population, COUNT(*) as IMMIGRANT_COUNT  
+![image](https://user-images.githubusercontent.com/4925968/137598102-ae846888-3056-4aa1-9e1a-6f18e095be72.png)
+
+### What is the total population and immigrant population of the cities where maximum immigrations are happening?
+SELECT dp.port_name, fd.total_population, COUNT(*) as IMMIGRANT_COUNT  
 FROM fact_immigration fi  
 INNER JOIN dim_Ports dp on fi.port_id = dp.port_id  
 INNER JOIN fact_demographics fd on fi.port_id = fd.city_id  
+INNER JOIN dim_time dt on fi.arrdate = dt.ts  
+WHERE dt.year = 2016 and dt.month IN (1, 2, 3)  
+GROUP BY dp.port_id, dp.port_name, fd.total_population  
 ORDER BY IMMIGRANT_COUNT DESC  
+
+![image](https://user-images.githubusercontent.com/4925968/137597902-c0c12d61-1983-4e9e-92e2-f21a7b37c9a1.png)
+
 
