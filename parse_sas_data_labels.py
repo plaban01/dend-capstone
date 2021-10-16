@@ -94,7 +94,7 @@ def extract_countries(data, key, output_path):
 
 contents = read_data('data/I94_SAS_Labels_Descriptions.SAS')
 
-output_path = 'output_data'
+output_path = '.'
 extract_countries(contents, 'i94cntyl', output_path)
 extract_ports(contents, 'i94prtl', output_path)
 extract_states(contents, 'i94addrl', output_path)
